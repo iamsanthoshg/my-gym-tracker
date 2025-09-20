@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym Progress Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: The application is designed as an interactive dashboard. This structure was chosen over separate static pages to provide a more fluid and integrated user experience, which is especially important for quick logging and progress checks on mobile devices. The core components are: 1) A clear data entry form at the top. 2) A row of key performance indicator (KPI) cards for at-a-glance motivation. 3) A dynamic chart area controlled by filter buttons for different muscle groups and consistency. 4) A detailed data table that updates based on the selected filter. This allows the user to log a workout and immediately see its impact on their stats and graphs without navigating away, fostering a direct feedback loop that is crucial for maintaining motivation. -->
+    <!-- Visualization & Content Choices: Report Info -> Goal -> Viz/Presentation Method -> Interaction -> Justification -> Library/Method. 1. Workout Data (Date, Exercise, Sets, Reps, Weight) -> Organize/Input -> HTML Form with dropdowns -> User input & submission -> Dropdowns enforce data consistency, a key challenge mentioned in the source doc -> Vanilla JS. 2. Progress Over Time -> Analyze Change -> Line Chart (Date vs. Weight) -> User filters by muscle group and exercise -> A line chart is the clearest way to show trends in strength gains for specific exercises -> Chart.js. 3. Gym Consistency -> Compare -> Bar Chart (Week vs. Session Count) -> User selects the 'Consistency' view -> A bar chart provides an intuitive comparison of workout frequency week-over-week -> Chart.js. 4. High-Level Stats -> Inform -> KPI Cards (Total Workouts, Max Weight) -> Automatically updates with new data -> Provides quick, motivating feedback -> Vanilla JS & HTML/Tailwind. 5. Raw Data View -> Inform/Organize -> Dynamic HTML Table -> Filters based on the selected view -> Allows users to see the specific data points powering the visualizations -> Vanilla JS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb; /* gray-50 */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 40vh;
+            max-height: 450px;
+        }
+        .btn-active {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .btn-inactive {
+            background-color: #ffffff;
+            color: #374151; /* gray-700 */
+            border: 1px solid #d1d5db; /* gray-300 */
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-900">Gym Progress Tracker</h1>
+            <p class="text-lg text-gray-600 mt-2">Log your workouts and visualize your journey to strength.</p>
+        </header>
+
+        <section id="data-entry" class="mb-8 p-6 bg-white rounded-xl shadow-md">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Log a New Workout</h2>
+            <form id="workout-form" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
+                <div>
+                    <label for="date" class="block text-sm font-medium text-gray-700">Date</label>
+                    <input type="date" id="date" name="date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="muscle-group" class="block text-sm font-medium text-gray-700">Muscle Group</label>
+                    <select id="muscle-group" name="muscle-group" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option>Chest</option>
+                        <option>Back</option>
+                        <option>Legs</option>
+                        <option>Shoulders</option>
+                        <option>Biceps</option>
+                        <option>Triceps</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="exercise" class="block text-sm font-medium text-gray-700">Exercise</label>
+                    <input type="text" id="exercise" name="exercise" required placeholder="e.g., Bench Press" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="sets" class="block text-sm font-medium text-gray-700">Sets</label>
+                    <input type="number" id="sets" name="sets" required placeholder="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="reps" class="block text-sm font-medium text-gray-700">Reps</label>
+                    <input type="number" id="reps" name="reps" required placeholder="10" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                 <div>
+                    <label for="weight" class="block text-sm font-medium text-gray-700">Weight (kg)</label>
+                    <input type="number" id="weight" name="weight" required placeholder="60" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div class="lg:col-span-6">
+                    <button type="submit" class="w-full mt-4 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Add Workout</button>
+                </div>
+            </form>
+            <div id="form-message" class="mt-4 text-center"></div>
+        </section>
+
+        <main id="dashboard" class="p-6 bg-white rounded-xl shadow-md">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Progress & Insights</h2>
+             <p class="text-gray-600 mb-6">This dashboard provides a comprehensive overview of your training. Use the filters to switch between your workout consistency and detailed progress for each muscle group. The charts and data below will update automatically based on your selection, allowing you to track trends and stay motivated.</p>
+            
+            <div id="stats" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="bg-gray-100 p-4 rounded-lg text-center">
+                    <p class="text-sm text-gray-500">Total Workouts</p>
+                    <p id="total-workouts" class="text-3xl font-bold text-blue-600">0</p>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg text-center">
+                    <p class="text-sm text-gray-500">Total Volume (kg)</p>
+                    <p id="total-volume" class="text-3xl font-bold text-blue-600">0</p>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg text-center">
+                    <p class="text-sm text-gray-500">Workouts This Week</p>
+                    <p id="workouts-this-week" class="text-3xl font-bold text-blue-600">0</p>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg text-center">
+                    <p class="text-sm text-gray-500">Max Weight Lifted (kg)</p>
+                    <p id="max-weight" class="text-3xl font-bold text-blue-600">0</p>
+                </div>
+            </div>
+
+            <div id="filters" class="flex flex-wrap justify-center gap-2 mb-6">
+                <button data-filter="consistency" class="filter-btn py-2 px-4 rounded-full text-sm font-medium transition-all duration-200">Consistency</button>
+                <button data-filter="Chest" class="filter-btn py-2 px-4 rounded-full text-sm font-medium transition-all duration-200">Chest</button>
+                <button data-filter="Back" class="filter-btn py-2 px-4 rounded-full text-sm font-medium transition-all duration-200">Back</button>
+                <button data-filter="Legs" class="filter-btn py-2 px-4 rounded-full text-sm font-medium transition-all duration-200">Legs</button>
+                <button data-filter="Shoulders" class="filter-btn py-2 px-4 rounded-full text-sm font-medium transition-all duration-200">Shoulders</button>
+                <button data-filter="Arms" class="filter-btn py-2 px-4 rounded-full text-sm font-medium transition-all duration-200">Arms</button>
+            </div>
+            
+            <div id="exercise-filter-container" class="mb-4 text-center hidden">
+                <label for="exercise-select" class="mr-2 font-medium">Select Exercise:</label>
+                <select id="exercise-select" class="rounded-md border-gray-300 shadow-sm"></select>
+            </div>
+
+            <div class="chart-container mb-8">
+                <canvas id="main-chart"></canvas>
+            </div>
+
+            <h3 id="table-title" class="text-xl font-semibold mb-4 text-gray-700">Recent Workouts</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exercise</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sets</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reps</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Weight</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Volume</th>
+                        </tr>
+                    </thead>
+                    <tbody id="workout-table" class="divide-y divide-gray-200">
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const workoutForm = document.getElementById('workout-form');
+            const dateInput = document.getElementById('date');
+            dateInput.valueAsDate = new Date();
+
+            let workouts = JSON.parse(localStorage.getItem('workouts')) || [
+                { date: '2025-09-08', muscleGroup: 'Chest', exercise: 'Bench Press', sets: 3, reps: 8, weight: 60 },
+                { date: '2025-09-08', muscleGroup: 'Triceps', exercise: 'Tricep Pushdown', sets: 3, reps: 12, weight: 20 },
+                { date: '2025-09-10', muscleGroup: 'Back', exercise: 'Deadlift', sets: 3, reps: 5, weight: 100 },
+                { date: '2025-09-10', muscleGroup: 'Biceps', exercise: 'Bicep Curl', sets: 3, reps: 10, weight: 15 },
+                { date: '2025-09-12', muscleGroup: 'Legs', exercise: 'Squat', sets: 4, reps: 8, weight: 80 },
+                { date: '2025-09-15', muscleGroup: 'Chest', exercise: 'Bench Press', sets: 3, reps: 8, weight: 62.5 },
+                { date: '2025-09-15', muscleGroup: 'Triceps', exercise: 'Skull Crushers', sets: 3, reps: 10, weight: 25 },
+                { date: '2025-09-17', muscleGroup: 'Back', exercise: 'Deadlift', sets: 3, reps: 5, weight: 105 },
+                { date: '2025-09-17', muscleGroup: 'Biceps', exercise: 'Hammer Curl', sets: 3, reps: 12, weight: 12.5 },
+                { date: '2025-09-19', muscleGroup: 'Legs', exercise: 'Squat', sets: 4, reps: 8, weight: 85 },
+            ];
+            
+            let currentFilter = 'consistency';
+            let currentExerciseFilter = null;
+            let chartInstance = null;
+            
+            const getWeekNumber = (d) => {
+                d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+                d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+                var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+                var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+                return weekNo;
+            };
+
+            const render = () => {
+                localStorage.setItem('workouts', JSON.stringify(workouts));
+                updateStats();
+                updateFilters();
+                renderChart();
+                renderTable();
+            };
+
+            const updateStats = () => {
+                const totalWorkouts = workouts.length;
+                const totalVolume = workouts.reduce((acc, w) => acc + (w.sets * w.reps * w.weight), 0);
+                const maxWeight = workouts.reduce((max, w) => w.weight > max ? w.weight : max, 0);
+
+                const today = new Date();
+                const currentWeek = getWeekNumber(today);
+                const currentYear = today.getFullYear();
+                const workoutsThisWeek = workouts.filter(w => {
+                    const workoutDate = new Date(w.date);
+                    return getWeekNumber(workoutDate) === currentWeek && workoutDate.getFullYear() === currentYear;
+                }).length;
+                
+                document.getElementById('total-workouts').textContent = totalWorkouts;
+                document.getElementById('total-volume').textContent = totalVolume.toLocaleString();
+                document.getElementById('workouts-this-week').textContent = workoutsThisWeek;
+                document.getElementById('max-weight').textContent = maxWeight;
+            };
+            
+            const updateFilters = () => {
+                const filterBtns = document.querySelectorAll('.filter-btn');
+                const exerciseFilterContainer = document.getElementById('exercise-filter-container');
+                const exerciseSelect = document.getElementById('exercise-select');
+                
+                filterBtns.forEach(btn => {
+                    if (btn.dataset.filter === currentFilter) {
+                        btn.classList.add('btn-active');
+                        btn.classList.remove('btn-inactive');
+                    } else {
+                        btn.classList.add('btn-inactive');
+                        btn.classList.remove('btn-active');
+                    }
+                });
+                
+                if(currentFilter !== 'consistency') {
+                    exerciseFilterContainer.classList.remove('hidden');
+                    let muscleGroupsToFilter = (currentFilter === 'Arms') ? ['Biceps', 'Triceps'] : [currentFilter];
+                    
+                    const exercises = [...new Set(workouts
+                        .filter(w => muscleGroupsToFilter.includes(w.muscleGroup))
+                        .map(w => w.exercise)
+                    )];
+                    
+                    exerciseSelect.innerHTML = '';
+                    if (exercises.length > 0) {
+                       if (!currentExerciseFilter || !exercises.includes(currentExerciseFilter)) {
+                           currentExerciseFilter = exercises[0];
+                       }
+                        exercises.forEach(ex => {
+                            const option = document.createElement('option');
+                            option.value = ex;
+                            option.textContent = ex;
+                            if (ex === currentExerciseFilter) {
+                                option.selected = true;
+                            }
+                            exerciseSelect.appendChild(option);
+                        });
+                    } else {
+                        currentExerciseFilter = null;
+                        const option = document.createElement('option');
+                        option.textContent = 'No exercises logged';
+                        exerciseSelect.appendChild(option);
+                    }
+                } else {
+                    exerciseFilterContainer.classList.add('hidden');
+                    currentExerciseFilter = null;
+                }
+            };
+            
+            const renderChart = () => {
+                const ctx = document.getElementById('main-chart').getContext('2d');
+                if (chartInstance) {
+                    chartInstance.destroy();
+                }
+
+                if (currentFilter === 'consistency') {
+                    renderConsistencyChart(ctx);
+                } else {
+                    renderMuscleGroupChart(ctx);
+                }
+            };
+
+            const renderConsistencyChart = (ctx) => {
+                const weeklyData = workouts.reduce((acc, workout) => {
+                    const date = new Date(workout.date);
+                    const week = `${date.getFullYear()}-W${getWeekNumber(date)}`;
+                    acc[week] = (acc[week] || 0) + 1;
+                    return acc;
+                }, {});
+
+                const sortedWeeks = Object.keys(weeklyData).sort();
+                const labels = sortedWeeks;
+                const data = sortedWeeks.map(week => weeklyData[week]);
+
+                chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Workouts per Week',
+                            data: data,
+                            backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true, title: { display: true, text: 'Number of Sessions' } }
+                        },
+                        plugins: {
+                            title: { display: true, text: 'Gym Consistency', font: { size: 18 } }
+                        }
+                    }
+                });
+            };
+
+            const renderMuscleGroupChart = (ctx) => {
+                if (!currentExerciseFilter) {
+                    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                    ctx.font = "16px Inter";
+                    ctx.fillStyle = "#6b7280";
+                    ctx.textAlign = "center";
+                    ctx.fillText(`No exercises logged for ${currentFilter}. Add a workout to see progress.`, ctx.canvas.width / 2, 50);
+                    return;
+                }
+                
+                const filteredWorkouts = workouts
+                    .filter(w => w.exercise === currentExerciseFilter)
+                    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: filteredWorkouts.map(w => w.date),
+                        datasets: [{
+                            label: `Weight Lifted (kg) for ${currentExerciseFilter}`,
+                            data: filteredWorkouts.map(w => w.weight),
+                            borderColor: 'rgba(239, 68, 68, 1)',
+                            backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                            fill: true,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: false, title: { display: true, text: 'Weight (kg)' } },
+                             x: { title: { display: true, text: 'Date' } }
+                        },
+                        plugins: {
+                            title: { display: true, text: `${currentFilter} Progress: ${currentExerciseFilter}`, font: { size: 18 } }
+                        }
+                    }
+                });
+            };
+            
+            const renderTable = () => {
+                const tableBody = document.getElementById('workout-table');
+                const tableTitle = document.getElementById('table-title');
+                tableBody.innerHTML = '';
+
+                let workoutsToDisplay = [];
+                if (currentFilter === 'consistency') {
+                    tableTitle.textContent = 'All Recent Workouts';
+                    workoutsToDisplay = [...workouts];
+                } else {
+                    tableTitle.textContent = `Recent ${currentFilter} Workouts`;
+                    let muscleGroupsToFilter = (currentFilter === 'Arms') ? ['Biceps', 'Triceps'] : [currentFilter];
+                    workoutsToDisplay = workouts.filter(w => muscleGroupsToFilter.includes(w.muscleGroup));
+                }
+
+                workoutsToDisplay
+                    .sort((a,b) => new Date(b.date) - new Date(a.date))
+                    .slice(0, 10)
+                    .forEach(w => {
+                        const row = document.createElement('tr');
+                        const volume = w.sets * w.reps * w.weight;
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${w.date}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${w.exercise}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${w.sets}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${w.reps}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${w.weight} kg</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${volume.toLocaleString()} kg</td>
+                        `;
+                        tableBody.appendChild(row);
+                });
+            };
+
+            workoutForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(workoutForm);
+                const newWorkout = {
+                    date: formData.get('date'),
+                    muscleGroup: formData.get('muscle-group'),
+                    exercise: formData.get('exercise'),
+                    sets: parseInt(formData.get('sets')),
+                    reps: parseInt(formData.get('reps')),
+                    weight: parseFloat(formData.get('weight')),
+                };
+                workouts.push(newWorkout);
+                workoutForm.reset();
+                dateInput.valueAsDate = new Date();
+                
+                const formMessage = document.getElementById('form-message');
+                formMessage.textContent = 'Workout added successfully!';
+                formMessage.className = 'mt-4 text-center text-green-600';
+                setTimeout(() => formMessage.textContent = '', 3000);
+
+                render();
+            });
+            
+            document.getElementById('filters').addEventListener('click', (e) => {
+                if (e.target.classList.contains('filter-btn')) {
+                    currentFilter = e.target.dataset.filter;
+                    render();
+                }
+            });
+            
+             document.getElementById('exercise-select').addEventListener('change', (e) => {
+                currentExerciseFilter = e.target.value;
+                renderChart();
+             });
+
+            render();
+        });
+    </script>
+</body>
+</html>
